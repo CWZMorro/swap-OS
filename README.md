@@ -1,4 +1,4 @@
-# Swap-OS (swindows)
+# Swap-OS
 
 A tool to hibernate Linux and reboot directly into Windows.
 Read the wiki for more info.
