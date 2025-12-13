@@ -4,6 +4,8 @@ A tool to hibernate Linux and reboot directly into Windows.
 
 ## Installation
 ```
+git clone https://github.com/CWZMorro/swap-OS.git
+cd swap-OS
 ./install.sh
 ```
 
