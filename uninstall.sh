@@ -1,6 +1,6 @@
 #!/bin/bash
 
-APP_NAME="swindows"
+APP_NAME="swapos"
 INSTALL_DIR="/usr/local/bin"
 
 echo "Uninstalling $APP_NAME..."

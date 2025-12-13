@@ -1,7 +1,7 @@
 #!/bin/bash
 
-APP_NAME="swindows"
-SOURCE_FILE="swindows.sh"
+APP_NAME="swapos"
+SOURCE_FILE="swapos.sh"
 INSTALL_DIR="/usr/local/bin"
 
 if [ ! -f "./$SOURCE_FILE" ]; then
