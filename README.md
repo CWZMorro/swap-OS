@@ -3,6 +3,8 @@
 A tool that enables swap between differnt OS.  Multiple OS are supported.
 Read the wiki for more info.
 
+If you don't trust this tool, you can manually configure it following the wiki guide.
+
 ## Installation
 
 ### Using AUR (yay/paru):
