@@ -12,14 +12,14 @@ cd swap-OS
 
 ## Usage
 ```
-sudo swindows
+sudo swapos
 ```
 
 ## Requirements
 
 UEFI System
 
-Swapfile configured.
+Swapfile configured
 
 Bootloader Configured: You must have resume=UUID=... in your kernel parameters.
 
