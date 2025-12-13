@@ -1,6 +1,6 @@
 # Swap-OS
 
-A tool to hibernate Linux and reboot directly into Windows.
+A tool that enables swap between differnt OS.  Multiple OS are supported.
 Read the wiki for more info.
 
 ## Installation
