@@ -23,11 +23,15 @@ sudo swapos
 
 ## Requirements
 
-UEFI System
+- UEFI System
 
-Swapfile configured
+- swapfile configured
 
-Bootloader Configured: You must have resume=UUID=... in your kernel parameters.
+- bootloader Configured (You must have resume=UUID=... in your kernel parameters.)
+
+- sudo privilages
+
+More details can be found in the wiki
 
 ## Uninstall (for manual install users only)
 ```
