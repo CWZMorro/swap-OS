@@ -21,3 +21,9 @@ UEFI System
 Swapfile configured.
 
 Bootloader Configured: You must have resume=UUID=... in your kernel parameters.
+
+## Uninstall
+```
+## cd to the swap-OS directory
+./uninstall.sh
+```
