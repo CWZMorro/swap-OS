@@ -34,9 +34,31 @@ fi
 
 # --- 2. OS SELECTION ---
 
-echo "--- Available Boot Entries ---"
+CONFIG_FILE="/etc/swapos.conf"
+
+# Default values
+CLEAN_OUTPUT="true"
+HIDDEN_KEYWORDS="HD|PciRoot|Pci|Acpi|VenHw|VenMsg|Usb|USB|File|Uri|MAC|NVMe|Sata|CD|Fv"
+
+if [ -f "$CONFIG_FILE" ]; then
+  source "$CONFIG_FILE"
+fi
+
 # List entries
-efibootmgr | grep -E "^Boot[0-9]{4}" | sed 's/\*//'
+echo "--- Available Boot Entries ---"
+printf "%-8s %s\n" "ID" "Name"
+echo "--------------------------------"
+
+if [ "$CLEAN_OUTPUT" == "true" ]; then
+  efibootmgr | grep -E "^Boot[0-9]{4}" |
+    sed 's/^Boot//;s/\*//' |
+    sed -E "s/[[:space:]]+($HIDDEN_KEYWORDS)\(.*$//" |
+    awk '{ id=$1; $1=""; sub(/^ /, "", $0); printf "%-8s %s\n", id, $0 }'
+else
+  efibootmgr | grep -E "^Boot[0-9]{4}" |
+    sed 's/^Boot//;s/\*//' |
+    awk '{ id=$1; $1=""; sub(/^ /, "", $0); printf "%-8s %s\n", id, $0 }'
+fi
 
 echo ""
 read -p "Enter the boot number (e.g. 0002) or name (e.g. Windows): " USER_INPUT
