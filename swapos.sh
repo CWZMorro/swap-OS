@@ -138,12 +138,8 @@ systemctl hibernate
 
 HIBERNATE_EXIT_CODE=$?
 
-if [ $HIBERNATE_EXIT_CODE -ne 0 ]; then
+[[ "$HIBERNATE_EXIT_CODE" -ne 0 ]] && {
   echo "Error: Hibernation failed!"
-  echo "Canceling BootNext flag to prevent boot loop..."
-  # Cancel the next boot flag to prevent getting stuck booting other OS
   efibootmgr -N &>/dev/null
   exit 1
-else
-  echo "Welcome back!"
-fi
+}
