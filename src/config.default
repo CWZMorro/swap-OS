@@ -1,0 +1,17 @@
+# /etc/swapos/config
+# Default Configuration for Swap-OS
+
+# --- Safety settings ---
+
+# A regex list of paths that must NEVER be unmounted
+# CAUTION: Removing '/nix', '/usr', or '/var' can crash your system
+PROTECTED_PATHS="^/($|boot|efi|dev|proc|sys|run|tmp|var|usr|etc|root|home|nix|gnu|opt|srv|bin|lib|lib64|sbin)"
+
+# The script attempts to remount drives after waking up if "true"
+# Set to "false" if you prefer to mount them manually
+AUTO_REMOUNT="true"
+
+# --- Interface settings ---
+
+# If "true", filters out technical entries
+HIDE_TECHNICAL_ENTRIES="true"

@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# --- Environment setup ---
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+
+# --- Library detection ---
+
+if [ -z "$SWAPOS_LIB" ]; then
+    # Run directly from src
+    if [ -f "$SCRIPT_DIR/lib/core.sh" ]; then
+        SWAPOS_LIB="$SCRIPT_DIR/lib"
+        SWAPOS_CONF_FILE="$SCRIPT_DIR/config.default"
+
+    elif [ -f "$SCRIPT_DIR/../lib/swapos/core.sh" ]; then
+        SWAPOS_LIB="$SCRIPT_DIR/../lib/swapos"
+        SWAPOS_CONF_FILE="/etc/swapos/config"
+
+    # Fallback
+    else
+        SWAPOS_LIB="/usr/local/lib/swapos"
+        SWAPOS_CONF_FILE="/etc/swapos/config"
+    fi
+fi
+
+# --- Load dependencies ---
+
+if [ -f "$SWAPOS_LIB/core.sh" ]; then
+    source "$SWAPOS_LIB/core.sh"
+else
+    echo "Error: Could not find core.sh in $SWAPOS_LIB"
+    exit 1
+fi
+
+if [ -f "$SWAPOS_LIB/safety.sh" ]; then
+    source "$SWAPOS_LIB/safety.sh"
+else
+    echo "Error: Could not find safety.sh in $SWAPOS_LIB"
+    exit 1
+fi
+
+# --- Load config ---
+
+if [ -f "$HOME/.config/swapos/config" ]; then
+    source "$HOME/.config/swapos/config"
+elif [ -f "$SWAPOS_CONF_FILE" ]; then
+    source "$SWAPOS_CONF_FILE"
+fi
+
+# --- Execution ---
+
+check_root
+check_dependencies
+select_boot_entry
+safety_check_and_unmount
+perform_hibernation
