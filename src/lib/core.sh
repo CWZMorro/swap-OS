@@ -34,7 +34,9 @@ select_boot_entry() {
       local name="${BASH_REMATCH[3]}"
 
       if [ "$HIDE_TECHNICAL_ENTRIES" == "true" ]; then
-        if [[ "$name" =~ (PciRoot|VenHw|Usb|IPv4|IPv6|Network|MAC|Fv) ]]; then
+        : "${TECHNICAL_KEYWORDS:="PciRoot|VenHw|VenMsg|Usb|USB|IPv4|IPv6|Network|MAC|Fv|HD|Acpi|File|Uri|NVMe|Sata|CD|DVD|BBS|BIOS|Floppy"}"
+
+        if [[ "$name" =~ ($TECHNICAL_KEYWORDS) ]]; then
           continue
         fi
       fi

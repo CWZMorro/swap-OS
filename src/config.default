@@ -1,5 +1,6 @@
 # /etc/swapos/config
 # Default Configuration for Swap-OS
+# Copy this file to ~/.config/swapos/config to customize it
 
 # --- Safety settings ---
 
@@ -15,3 +16,5 @@ AUTO_REMOUNT="true"
 
 # If "true", filters out technical entries
 HIDE_TECHNICAL_ENTRIES="true"
+# The regex list of keywords to hide if the above is "true"
+TECHNICAL_KEYWORDS="(PciRoot|VenHw|VenMsg|Usb|USB|IPv4|IPv6|Network|MAC|Fv|HD|Acpi|File|Uri|NVMe|Sata|CD|DVD|BBS|BIOS|Floppy)"
