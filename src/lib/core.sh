@@ -34,11 +34,9 @@ select_boot_entry() {
       local name="${BASH_REMATCH[3]}"
 
       if [ "$HIDE_TECHNICAL_ENTRIES" == "true" ]; then
-        : "${TECHNICAL_KEYWORDS:="PciRoot|VenHw|VenMsg|Usb|USB|IPv4|IPv6|Network|MAC|Fv|HD|Acpi|File|Uri|NVMe|Sata|CD|DVD|BBS|BIOS|Floppy"}"
+        : "${TECHNICAL_KEYWORDS:="HD|PciRoot|Pci|Acpi|VenHw|VenMsg|Usb|USB|File|Uri|MAC|NVMe|Sata|CD|Fv"}"
 
-        if [[ "$name" =~ ($TECHNICAL_KEYWORDS) ]]; then
-          continue
-        fi
+        name=$(echo "$name" | sed -E "s/[[:space:]]+($TECHNICAL_KEYWORDS)\(.*$//")
       fi
 
       ids+=("$id")

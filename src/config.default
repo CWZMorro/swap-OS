@@ -17,4 +17,4 @@ AUTO_REMOUNT="true"
 # If "true", filters out technical entries
 HIDE_TECHNICAL_ENTRIES="true"
 # The regex list of keywords to hide if the above is "true"
-TECHNICAL_KEYWORDS="(PciRoot|VenHw|VenMsg|Usb|USB|IPv4|IPv6|Network|MAC|Fv|HD|Acpi|File|Uri|NVMe|Sata|CD|DVD|BBS|BIOS|Floppy)"
+TECHNICAL_KEYWORDS="(HD|PciRoot|Pci|Acpi|VenHw|VenMsg|Usb|USB|File|Uri|MAC|NVMe|Sata|CD|Fv)"
