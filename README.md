@@ -5,45 +5,59 @@ Read the wiki for more info.
 
 If you don't trust this tool, you can manually configure it following the wiki guide.
 
+## Requirements
+
+- **UEFI System** (Legacy BIOS is not supported)
+- **Swap file or swap partition configured**
+- **Bootloader configured** (Kernel parameters must include `resume=UUID=...` or systemd-hibernate configured)
+- sudo privilages
+
 ## Installation
 
-### Using AUR (yay/paru):
+### Arch Linux (AUR (yay/paru)):
 ```
 yay swap-os-git
 ```
 
-
-### Manual install:
+### NixOS (Flake):
+Run temporarily
 ```
-git clone https://github.com/CWZMorro/swap-OS.git
+nix run github:CWZMorro/swap-os --impure
+```
+Install permanently (Flake) 
+```
+# Add to your configuration.nix or flake.nix
+# flake.nix
+{
+  inputs.swapos.url = "github:CWZMorro/swap-os";
+  
+  outputs = { self, nixpkgs, swapos, ... }: {
+    nixosConfigurations.myMachine = nixpkgs.lib.nixosSystem {
+      modules = [
+        swapos.nixosModules.default
+        {
+          programs.swapos = {
+            enable = true;
+            # Optional: Add extra paths to protect from unmounting
+            protectedPaths = [ "/home/games" "/mnt/archive" ]; 
+          };
+        }
+      ];
+    };
+  };
+}
+```
+### Other Distros (Manual Install)
+Dependencies: bash, efibootmgr, util-linux, systemd, make
+```
+git clone https://github.com/CWZMorro/swap-OS
 cd swap-OS
-./install.sh
+sudo make install
 ```
-
 ## Usage
 ```
 sudo swapos
 ```
-
-## Requirements
-
-- UEFI System
-
-- swapfile configured
-
-- bootloader Configured (You must have resume=UUID=... in your kernel parameters.)
-
-- sudo privilages
-
-More details can be found in the wiki
-
-## Uninstall (for manual install users only)
-```
-## cd to the swap-OS directory
-./uninstall.sh
-```
-
-
 ## CRITICAL Windows Configuration
 
   1. Boot into Windows. (Tips: you can just use swapos and make sure it works)
