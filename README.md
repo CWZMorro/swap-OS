@@ -73,3 +73,10 @@ sudo swapos
   6. CHECK "Hibernate" (Enables hibernate option in start)
 
   7. Save changes
+
+## Configuration
+
+```
+mkdir -p ~/.config/swapos
+cp /etc/swapos/config ~/.config/swapos/config
+```
