@@ -1,62 +1,51 @@
 #!/bin/bash
 
-# --- Environment setup ---
-
+# Find where the script is actually located
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ]; do
-  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
   SOURCE="$(readlink "$SOURCE")"
   [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
 done
-SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 
-# --- Library detection ---
+# Default to system paths
+SWAPOS_LIB="/usr/local/lib/swapos"
+DEFAULT_CONF="/usr/local/share/swapos/config.default"
 
-if [ -z "$SWAPOS_LIB" ]; then
-    # Run directly from src
-    if [ -f "$SCRIPT_DIR/lib/core.sh" ]; then
-        SWAPOS_LIB="$SCRIPT_DIR/lib"
-        SWAPOS_CONF_FILE="$SCRIPT_DIR/config.default"
-
-    elif [ -f "$SCRIPT_DIR/../lib/swapos/core.sh" ]; then
-        SWAPOS_LIB="$SCRIPT_DIR/../lib/swapos"
-        SWAPOS_CONF_FILE="/etc/swapos/config"
-
-    # Fallback
-    else
-        SWAPOS_LIB="/usr/local/lib/swapos"
-        SWAPOS_CONF_FILE="/etc/swapos/config"
-    fi
+# Override if running locally
+if [ -f "$SCRIPT_DIR/lib/core.sh" ]; then
+  SWAPOS_LIB="$SCRIPT_DIR/lib"
+  DEFAULT_CONF="$SCRIPT_DIR/config.default"
+# Override if installed in /usr
+elif [ -f "/usr/lib/swapos/core.sh" ]; then
+  SWAPOS_LIB="/usr/lib/swapos"
+  DEFAULT_CONF="/usr/share/swapos/config.default"
 fi
 
-# --- Load dependencies ---
-
-if [ -f "$SWAPOS_LIB/core.sh" ]; then
-    source "$SWAPOS_LIB/core.sh"
-else
-    echo "Error: Could not find core.sh in $SWAPOS_LIB"
-    exit 1
+# Load libs
+if [ ! -f "$SWAPOS_LIB/core.sh" ]; then
+  echo "Error: Critical libraries not found in $SWAPOS_LIB"
+  exit 1
 fi
+source "$SWAPOS_LIB/core.sh"
+source "$SWAPOS_LIB/safety.sh"
 
-if [ -f "$SWAPOS_LIB/safety.sh" ]; then
-    source "$SWAPOS_LIB/safety.sh"
-else
-    echo "Error: Could not find safety.sh in $SWAPOS_LIB"
-    exit 1
-fi
-
-# --- Load config ---
-
+# Load configs
 if [ -f "$HOME/.config/swapos/config" ]; then
-    source "$HOME/.config/swapos/config"
-elif [ -f "$SWAPOS_CONF_FILE" ]; then
-    source "$SWAPOS_CONF_FILE"
+  source "$HOME/.config/swapos/config"
+elif [ -f "/etc/swapos/config" ]; then
+  source "/etc/swapos/config"
+elif [ -f "$DEFAULT_CONF" ]; then
+  source "$DEFAULT_CONF"
+else
+  echo "Warning: No config file found. Using internal defaults."
 fi
 
-# --- Execution ---
-
+# Execution
 check_root
 check_dependencies
+detect_bootloader
 select_boot_entry
 safety_check_and_unmount
 perform_hibernation

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Global variable to store detected loader
+BOOTLOADER_TYPE=""
+
 check_root() {
   if [[ $EUID -ne 0 ]]; then
     echo "Error: This application requires root privileges."
@@ -8,95 +11,165 @@ check_root() {
 }
 
 check_dependencies() {
-  # systemd-boot requires 'bootctl'
-  # We still check efibootmgr as a backup/utility
-  for cmd in bootctl efibootmgr systemctl findmnt grep; do
+  # Check for jq or awk
+  local deps=(systemctl findmnt grep)
+
+  # Check generic dependencies
+  for cmd in "${deps[@]}"; do
     if ! command -v $cmd &>/dev/null; then
-      echo "Error: Required command '$cmd' is not installed."
+      echo "Error: Required command '$cmd' is missing."
       exit 1
     fi
   done
+}
 
-  if ! bootctl is-installed &>/dev/null; then
-    echo "Error: systemd-boot is not detecting your bootloader."
-    echo "This version of swap-os requires systemd-boot to function safely."
+detect_bootloader() {
+  if bootctl is-installed &>/dev/null; then
+    BOOTLOADER_TYPE="systemd-boot"
+    if ! command -v jq &>/dev/null; then
+      echo "Warning: 'jq' is not installed. JSON parsing disabled (less robust)."
+    fi
+  elif [ -d "/boot/grub" ] && command -v grub-reboot &>/dev/null; then
+    BOOTLOADER_TYPE="grub"
+  else
+    echo "Error: No supported bootloader detected (systemd-boot or GRUB)."
     exit 1
   fi
+
+  echo "Detected Bootloader: $BOOTLOADER_TYPE"
 }
 
 select_boot_entry() {
-  echo "--- Available Boot Entries (systemd-boot) ---"
+  if [ "$BOOTLOADER_TYPE" == "systemd-boot" ]; then
+    select_entry_systemd
+  else
+    select_entry_grub
+  fi
+}
 
-  # We parse 'bootctl list' to get clean titles and IDs
-  # Format: Title (ID)
-  local entries
-  entries=$(bootctl list --no-pager)
+select_entry_systemd() {
+  echo "--- systemd-boot Entries ---"
 
-  # Arrays to hold data
-  local titles=()
   local ids=()
+  local titles=()
 
-  # Temporary loop to parse the list safely
-  # looking for lines starting with "title:" and "id:"
-  while IFS= read -r line; do
-    if [[ "$line" =~ ^[[:space:]]*title:[[:space:]]*(.*)$ ]]; then
-      titles+=("${BASH_REMATCH[1]}")
-    elif [[ "$line" =~ ^[[:space:]]*id:[[:space:]]*(.*)$ ]]; then
-      ids+=("${BASH_REMATCH[1]}")
-    fi
-  done <<<"$entries"
+  if command -v jq &>/dev/null; then
+    # Read JSON output into arrays
+    # mapfile reads lines into an array safely
+    mapfile -t ids < <(bootctl list --json=short | jq -r '.[] | .id')
+    mapfile -t titles < <(bootctl list --json=short | jq -r '.[] | .title')
+  else
+    # Fallback to using old regex method
+    while IFS= read -r line; do
+      if [[ "$line" =~ ^[[:space:]]*title:[[:space:]]*(.*)$ ]]; then
+        titles+=("${BASH_REMATCH[1]}")
+      elif [[ "$line" =~ ^[[:space:]]*id:[[:space:]]*(.*)$ ]]; then
+        ids+=("${BASH_REMATCH[1]}")
+      fi
+    done < <(bootctl list --no-pager)
+  fi
 
   # Display Menu
   for i in "${!ids[@]}"; do
     printf "[%d] %s\n" "$((i + 1))" "${titles[$i]}"
   done
-  echo "------------------------------"
 
+  # User Selection Logic
   read -p "Select OS number: " selection
 
+  # Input Validation
   if ! [[ "$selection" =~ ^[0-9]+$ ]]; then
-    echo "Error: Invalid input."
+    echo "Invalid input"
     exit 1
   fi
-
   local index=$((selection - 1))
 
   if [ -z "${ids[$index]}" ]; then
-    echo "Error: Selection out of range."
+    echo "Out of range"
     exit 1
   fi
 
   TARGET_ID="${ids[$index]}"
   TARGET_TITLE="${titles[$index]}"
-
-  echo "Target Selected: $TARGET_TITLE ($TARGET_ID)"
+  echo "Selected: $TARGET_TITLE"
 }
 
-perform_hibernation() {
-  # The Magic: "oneshot" tells systemd-boot to pick this ID only once
-  echo "Setting systemd-boot one-shot flag..."
+select_entry_grub() {
+  echo "--- GRUB Entries ---"
 
-  if ! bootctl set-oneshot "$TARGET_ID"; then
-    echo "Error: Failed to set boot flag."
+  local titles=()
+  local grub_cfg="/boot/grub/grub.cfg"
+
+  if [ ! -f "$grub_cfg" ]; then
+    # Some distros use /boot/grub2
+    grub_cfg="/boot/grub2/grub.cfg"
+    if [ ! -f "$grub_cfg" ]; then
+      echo "Error: Cannot find grub.cfg"
+      exit 1
+    fi
+  fi
+
+  mapfile -t titles < <(awk -F\' '/^menuentry / {print $2}' "$grub_cfg")
+
+  for i in "${!titles[@]}"; do
+    printf "[%d] %s\n" "$((i + 1))" "${titles[$i]}"
+  done
+
+  read -p "Select OS number: " selection
+
+  if ! [[ "$selection" =~ ^[0-9]+$ ]]; then
+    echo "Invalid input"
+    exit 1
+  fi
+  local index=$((selection - 1))
+
+  if [ -z "${titles[$index]}" ]; then
+    echo "Out of range"
     exit 1
   fi
 
-  echo "System is going down for hibernation..."
+  TARGET_ID="${titles[$index]}"
+}
+
+perform_hibernation() {
+  echo "Preparing to hibernate..."
+
+  # Set the boot flag
+  if [ "$BOOTLOADER_TYPE" == "systemd-boot" ]; then
+    bootctl set-oneshot "$TARGET_ID"
+  else
+    # GRUB command
+    grub-reboot "$TARGET_ID"
+  fi
+
+  # Check if command succeeded
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to set next boot entry."
+    exit 1
+  fi
+
+  echo "Hibernating now..."
   sleep 2
 
+  # Hibernate
   if ! systemctl hibernate; then
-    echo "CRITICAL ERROR: Hibernation command failed."
-    echo "Clearing boot flag to prevent boot loop..."
-    bootctl set-oneshot ""
+    echo "CRITICAL: Hibernation failed."
 
-    # Attempt to remount if safety.sh was used
+    # Cleanup if failed
+    if [ "$BOOTLOADER_TYPE" == "systemd-boot" ]; then
+      bootctl set-oneshot ""
+    else
+      # Reset GRUB env
+      grub-editenv - unset next_entry
+    fi
+
+    # Remount drives
     if type restore_mounts &>/dev/null; then restore_mounts; fi
     exit 1
   fi
 
-  # If we wake up here, we are back in Linux.
-  echo "System has resumed from hibernation."
-
+  # 3. Resume
+  echo "System resumed."
   if [ "${AUTO_REMOUNT:-true}" == "true" ]; then
     if type restore_mounts &>/dev/null; then restore_mounts; fi
   fi
