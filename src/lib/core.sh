@@ -8,49 +8,51 @@ check_root() {
 }
 
 check_dependencies() {
-  # Loop through list of required commands
-  for cmd in efibootmgr systemctl findmnt grep; do
+  # systemd-boot requires 'bootctl'
+  # We still check efibootmgr as a backup/utility
+  for cmd in bootctl efibootmgr systemctl findmnt grep; do
     if ! command -v $cmd &>/dev/null; then
       echo "Error: Required command '$cmd' is not installed."
       exit 1
     fi
   done
+
+  if ! bootctl is-installed &>/dev/null; then
+    echo "Error: systemd-boot is not detecting your bootloader."
+    echo "This version of swap-os requires systemd-boot to function safely."
+    exit 1
+  fi
 }
 
 select_boot_entry() {
-  # Get raw output from efibootmgr
-  local raw_output
-  raw_output=$(efibootmgr)
+  echo "--- Available Boot Entries (systemd-boot) ---"
 
+  # We parse 'bootctl list' to get clean titles and IDs
+  # Format: Title (ID)
+  local entries
+  entries=$(bootctl list --no-pager)
+
+  # Arrays to hold data
+  local titles=()
   local ids=()
-  local names=()
-  local i=0
 
-  echo "--- Available Boot Entries ---"
-
-  while read -r line; do
-    if [[ $line =~ ^Boot([0-9A-F]{4})(\*?)\ (.*)$ ]]; then
-      local id="${BASH_REMATCH[1]}"
-      local name="${BASH_REMATCH[3]}"
-
-      if [ "$HIDE_TECHNICAL_ENTRIES" == "true" ]; then
-        : "${TECHNICAL_KEYWORDS:="HD|PciRoot|Pci|Acpi|VenHw|VenMsg|Usb|USB|File|Uri|MAC|NVMe|Sata|CD|Fv"}"
-
-        name=$(echo "$name" | sed -E "s/[[:space:]]+($TECHNICAL_KEYWORDS)\(.*$//")
-      fi
-
-      ids+=("$id")
-      names+=("$name")
-
-      printf "[%d] %s (ID: %s)\n" "$((i + 1))" "$name" "$id"
-      ((i++))
+  # Temporary loop to parse the list safely
+  # looking for lines starting with "title:" and "id:"
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*title:[[:space:]]*(.*)$ ]]; then
+      titles+=("${BASH_REMATCH[1]}")
+    elif [[ "$line" =~ ^[[:space:]]*id:[[:space:]]*(.*)$ ]]; then
+      ids+=("${BASH_REMATCH[1]}")
     fi
-  done <<<"$raw_output"
+  done <<<"$entries"
 
+  # Display Menu
+  for i in "${!ids[@]}"; do
+    printf "[%d] %s\n" "$((i + 1))" "${titles[$i]}"
+  done
   echo "------------------------------"
 
-  # Read user input
-  read -p "Select OS number (1-$i): " selection
+  read -p "Select OS number: " selection
 
   if ! [[ "$selection" =~ ^[0-9]+$ ]]; then
     echo "Error: Invalid input."
@@ -59,22 +61,23 @@ select_boot_entry() {
 
   local index=$((selection - 1))
 
-  if [ "$index" -ge 0 ] && [ "$index" -lt "$i" ]; then
-    TARGET_ID="${ids[$index]}"
-    echo "Target Selected: ${names[$index]} ($TARGET_ID)"
-  else
+  if [ -z "${ids[$index]}" ]; then
     echo "Error: Selection out of range."
     exit 1
   fi
+
+  TARGET_ID="${ids[$index]}"
+  TARGET_TITLE="${titles[$index]}"
+
+  echo "Target Selected: $TARGET_TITLE ($TARGET_ID)"
 }
 
 perform_hibernation() {
-  # Set BootNext variable in EFI vars
-  echo "Setting EFI BootNext to $TARGET_ID..."
-  if ! efibootmgr --bootnext "$TARGET_ID" &>/dev/null; then
-    echo "Error: Failed to set BootNext flag."
-    # Remount previously unmounted drives if fail
-    if type restore_mounts &>/dev/null; then restore_mounts; fi
+  # The Magic: "oneshot" tells systemd-boot to pick this ID only once
+  echo "Setting systemd-boot one-shot flag..."
+
+  if ! bootctl set-oneshot "$TARGET_ID"; then
+    echo "Error: Failed to set boot flag."
     exit 1
   fi
 
@@ -83,14 +86,18 @@ perform_hibernation() {
 
   if ! systemctl hibernate; then
     echo "CRITICAL ERROR: Hibernation command failed."
-    efibootmgr -N &>/dev/null
+    echo "Clearing boot flag to prevent boot loop..."
+    bootctl set-oneshot ""
+
+    # Attempt to remount if safety.sh was used
     if type restore_mounts &>/dev/null; then restore_mounts; fi
     exit 1
   fi
 
+  # If we wake up here, we are back in Linux.
   echo "System has resumed from hibernation."
 
-  if [ "$AUTO_REMOUNT" == "true" ]; then
-    restore_mounts
+  if [ "${AUTO_REMOUNT:-true}" == "true" ]; then
+    if type restore_mounts &>/dev/null; then restore_mounts; fi
   fi
 }

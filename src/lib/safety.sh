@@ -6,6 +6,10 @@ STATE_FILE="/run/swapos/unmounted_targets"
 safety_check_and_unmount() {
   : "${PROTECTED_PATHS:="^/($|boot|efi|dev|proc|sys|run|tmp|var|usr|etc|root|home|nix|gnu|opt|srv|bin|lib|lib64|sbin)"}"
 
+  # Get the Dynamic ESP path from systemd-boot
+  local esp_path
+  esp_path=$(bootctl -p 2>/dev/null)
+
   # findmnt: List all mounts
   # -r: Raw output
   # -n: No headings
@@ -21,7 +25,27 @@ safety_check_and_unmount() {
   fi
 
   echo "Detected shared partitions that must be unmounted:"
-  echo "$targets"
+
+  local safe_targets=""
+  while read -r mountpoint; do
+    if [[ -n "$esp_path" ]] && [[ "$mountpoint" == "$esp_path" ]]; then
+      echo "Skipping ESP (Boot Partition): $mountpoint"
+      continue
+    fi
+
+    if [[ "$mountpoint" == "/boot" ]] || [[ "$mountpoint" == "/efi" ]]; then
+      echo "Skipping Protected Path: $mountpoint"
+      continue
+    fi
+
+    echo "$mountpoint"
+    safe_targets+="$mountpoint"$'\n'
+  done <<<"$targets"
+
+  if [ -z "$safe_targets" ]; then
+    echo "All targets were protected. Nothing to unmount."
+    return 0
+  fi
 
   # Create the state directory in /run
   mkdir -p "$(dirname "$STATE_FILE")"
@@ -31,6 +55,8 @@ safety_check_and_unmount() {
   local failure_count=0
 
   while read -r mountpoint; do
+    if [ -z "$mountpoint" ]; then continue; fi
+
     echo -n "Unmounting $mountpoint... "
 
     # Check if busy using lsof
@@ -50,7 +76,7 @@ safety_check_and_unmount() {
       echo "FAILED"
       ((failure_count++))
     fi
-  done <<<"$targets"
+  done <<<"$safe_targets"
 
   if [ "$failure_count" -gt 0 ]; then
     echo "Error: Failed to unmount $failure_count partition(s)."
