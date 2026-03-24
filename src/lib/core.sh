@@ -12,7 +12,7 @@ check_root() {
 
 check_dependencies() {
   # Check for jq or awk
-  local deps=(systemctl findmnt grep)
+  local deps=(systemctl findmnt grep jq awk)
 
   # Check generic dependencies
   for cmd in "${deps[@]}"; do
@@ -26,9 +26,6 @@ check_dependencies() {
 detect_bootloader() {
   if bootctl is-installed &>/dev/null; then
     BOOTLOADER_TYPE="systemd-boot"
-    if ! command -v jq &>/dev/null; then
-      echo "Warning: 'jq' is not installed. JSON parsing disabled (less robust)."
-    fi
   elif [ -d "/boot/grub" ] && command -v grub-reboot &>/dev/null; then
     BOOTLOADER_TYPE="grub"
   else
@@ -53,21 +50,11 @@ select_entry_systemd() {
   local ids=()
   local titles=()
 
-  if command -v jq &>/dev/null; then
-    # Read JSON output into arrays
-    # mapfile reads lines into an array safely
-    mapfile -t ids < <(bootctl list --json=short | jq -r '.[] | .id')
-    mapfile -t titles < <(bootctl list --json=short | jq -r '.[] | .title')
-  else
-    # Fallback to using old regex method
-    while IFS= read -r line; do
-      if [[ "$line" =~ ^[[:space:]]*title:[[:space:]]*(.*)$ ]]; then
-        titles+=("${BASH_REMATCH[1]}")
-      elif [[ "$line" =~ ^[[:space:]]*id:[[:space:]]*(.*)$ ]]; then
-        ids+=("${BASH_REMATCH[1]}")
-      fi
-    done < <(bootctl list --no-pager)
-  fi
+  # Read JSON output into arrays
+  mapfile -t ids < <(bootctl list --json=short | jq -r '.[] | .id')
+
+  # Filter
+  mapfile -t titles < <(bootctl list --json=short | jq -r '.[] | if .title then (if .version then "\(.title) (\(.version))" else .title end) else "\(.id) (Absent/Broken)" end')
 
   # Display Menu
   for i in "${!ids[@]}"; do

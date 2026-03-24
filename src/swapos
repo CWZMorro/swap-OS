@@ -10,11 +10,11 @@ done
 SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 
 # Default to system paths
-SWAPOS_LIB="/usr/local/lib/swapos"
-DEFAULT_CONF="/usr/local/share/swapos/config.default"
+: "${SWAPOS_LIB:=/usr/local/lib/swapos}"
+: "${DEFAULT_CONF:=/usr/local/share/swapos/config.default}"
 
 # Override if running locally
-if [ -f "$SCRIPT_DIR/lib/core.sh" ]; then
+if [ ! -f "$SWAPOS_LIB/core.sh" ]; then
   SWAPOS_LIB="$SCRIPT_DIR/lib"
   DEFAULT_CONF="$SCRIPT_DIR/config.default"
 # Override if installed in /usr

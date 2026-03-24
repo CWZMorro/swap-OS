@@ -1,4 +1,4 @@
-{ lib, stdenv, makeWrapper, efibootmgr, util-linux, systemd, bash }:
+{ lib, stdenv, makeWrapper, efibootmgr, util-linux, systemd, bash, jq, gawk }:
 
 stdenv.mkDerivation {
   pname = "swapos";
@@ -7,7 +7,7 @@ stdenv.mkDerivation {
   src = ../.;
 
   nativeBuildInputs = [ makeWrapper ];
-  buildInputs = [ bash ];
+  buildInputs = [ bash, jq, gawk ];
 
   installPhase = ''
     mkdir -p $out/bin $out/lib/swapos $out/share/doc/swapos
