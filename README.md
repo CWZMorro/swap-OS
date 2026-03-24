@@ -1,6 +1,6 @@
 # Swap-OS
 
-A tool that enables swap between differnt OS.  Multiple OS are supported.
+A tool that enables seamless swap between different OS.  Multiple OS are supported.
 Read the wiki for more info.
 
 If you don't trust this tool, you can manually configure it following the wiki guide.
