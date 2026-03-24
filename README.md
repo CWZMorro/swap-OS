@@ -20,7 +20,7 @@ yay swap-os-git
 ```
 
 ### NixOS (Flake):
-Run temporarily
+Run temporarily (try it out!)
 ```
 nix run github:CWZMorro/swap-os --impure
 ```
@@ -48,7 +48,7 @@ Install permanently (Flake)
 }
 ```
 ### Other Distros (Manual Install)
-Dependencies: bash, efibootmgr, util-linux, systemd, make
+Dependencies: bash, efibootmgr, util-linux, systemd, make, jq, awk
 ```
 git clone https://github.com/CWZMorro/swap-OS
 cd swap-OS
@@ -79,4 +79,15 @@ sudo swapos
 ```
 mkdir -p ~/.config/swapos
 cp /etc/swapos/config ~/.config/swapos/config
+```
+
+## Development & Testing
+
+If you want to modify the code and test it without installing it to your system, swapos is designed to run locally from the source directory.
+```
+git clone https://github.com/CWZMorro/swap-OS
+cd swap-OS
+
+# Run from root folder
+sudo ./src/swapos
 ```
