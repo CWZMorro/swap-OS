@@ -16,7 +16,7 @@ in {
 
     protectedPaths = mkOption {
       type = types.listOf types.str;
-      default = [ "/nix" "/boot" "/home" ];
+      default = [ "/nix" "/nix/store" "/boot" "/home" ];
       description = "List of mount points to NEVER unmount.";
     };
   };

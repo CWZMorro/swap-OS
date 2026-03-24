@@ -4,7 +4,7 @@ STATE_FILE="/run/swapos/unmounted_targets"
 
 safety_check_and_unmount() {
   # Default list of protected paths (regex)
-  : "${PROTECTED_PATHS:="^/($|boot|efi|dev|proc|sys|run|tmp|var|usr|etc|root|home|nix|gnu|opt|srv|bin|lib|lib64|sbin)"}"
+  : PROTECTED_PATHS="^/($|boot|efi|dev|proc|sys|run|tmp|var|usr|etc|root|home|nix|nix/store|gnu|opt|srv|bin|lib|lib64|sbin)"
 
   # Get list of targets
   local targets

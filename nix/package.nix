@@ -7,7 +7,7 @@ stdenv.mkDerivation {
   src = ../.;
 
   nativeBuildInputs = [ makeWrapper ];
-  buildInputs = [ bash, jq, gawk ];
+  buildInputs = [ bash jq gawk ];
 
   installPhase = ''
     mkdir -p $out/bin $out/lib/swapos $out/share/doc/swapos
@@ -19,7 +19,7 @@ stdenv.mkDerivation {
     chmod +x $out/bin/swapos
 
     wrapProgram $out/bin/swapos \
-      --prefix PATH : ${lib.makeBinPath [ efibootmgr util-linux systemd ]} \
+      --prefix PATH : ${lib.makeBinPath [ efibootmgr util-linux systemd jq gawk ]} \
       --set SWAPOS_LIB $out/lib/swapos
   '';
 
