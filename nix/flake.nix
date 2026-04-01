@@ -27,7 +27,7 @@
     in {
       default = pkgs.mkShell {
         # Tools in the dev shell
-        buildInputs = with pkgs; [ bash efibootmgr util-linux gnumake ];
+        buildInputs = with pkgs; [ bash util-linux systemd jq lsof coreutils gnumake ];
       };
     });
   };

@@ -33,20 +33,97 @@ fi
 source "$SWAPOS_LIB/core.sh"
 source "$SWAPOS_LIB/safety.sh"
 
-# Load configs
-if [ -f "$HOME/.config/swapos/config" ]; then
-  source "$HOME/.config/swapos/config"
+# Load configs without executing shell code from untrusted files
+load_config_value() {
+  local key="$1"
+  local file="$2"
+
+  jq -R -s -r --arg key "$key" '
+    split("\n")
+    | map(
+        select(test("^[[:space:]]*#") | not)
+        | select(test("^[[:space:]]*$") | not)
+        | capture("^[[:space:]]*(?<k>[A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(?<v>.*)[[:space:]]*$")?
+        | select(.k == $key)
+        | .v
+        | if (startswith("\"") and endswith("\"")) or (startswith("\u0027") and endswith("\u0027"))
+          then .[1:-1]
+          else .
+          end
+      )
+    | last // empty
+  ' "$file"
+}
+
+load_config_file() {
+  local file="$1"
+  local value=""
+
+  value=$(load_config_value "PROTECTED_PATHS" "$file")
+  [ -n "$value" ] && PROTECTED_PATHS="$value"
+
+  value=$(load_config_value "AUTO_REMOUNT" "$file")
+  [ -n "$value" ] && AUTO_REMOUNT="$value"
+
+  value=$(load_config_value "HIDE_TECHNICAL_ENTRIES" "$file")
+  [ -n "$value" ] && HIDE_TECHNICAL_ENTRIES="$value"
+
+  value=$(load_config_value "TECHNICAL_KEYWORDS" "$file")
+  [ -n "$value" ] && TECHNICAL_KEYWORDS="$value"
+}
+
+USER_HOME=$(getent passwd "${SUDO_USER:-$USER}" | jq -R -r 'split(":")[5] // empty')
+if [ -n "$USER_HOME" ] && [ -f "$USER_HOME/.config/swapos/config" ]; then
+  load_config_file "$USER_HOME/.config/swapos/config"
 elif [ -f "/etc/swapos/config" ]; then
-  source "/etc/swapos/config"
+  load_config_file "/etc/swapos/config"
 elif [ -f "$DEFAULT_CONF" ]; then
-  source "$DEFAULT_CONF"
+  load_config_file "$DEFAULT_CONF"
 else
   echo "Warning: No config file found. Using internal defaults."
 fi
 
+: "${AUTO_REMOUNT:=true}"
+
+validate_sleep_hook() {
+  local -a hook_paths=(
+    "/etc/systemd/system-sleep/swapos-hibernate"
+    "/etc/systemd/system-sleep/hibernate.sh"
+    "/usr/lib/systemd/system-sleep/hibernate.sh"
+    "/lib/systemd/system-sleep/hibernate.sh"
+  )
+  local hook=""
+
+  # Local source-tree testing should work without system-wide installation.
+  if [ -f "$SCRIPT_DIR/system-sleep/hibernate.sh" ]; then
+    echo "Testing mode: using source-tree sleep hook at $SCRIPT_DIR/system-sleep/hibernate.sh"
+    return 0
+  fi
+
+  # Allow explicit override for advanced scenarios.
+  if [ "${SWAPOS_SKIP_HOOK_CHECK:-false}" == "true" ]; then
+    echo "Warning: Skipping sleep hook validation (SWAPOS_SKIP_HOOK_CHECK=true)."
+    return 0
+  fi
+
+  for hook in "${hook_paths[@]}"; do
+    if [ -x "$hook" ]; then
+      return 0
+    fi
+  done
+
+  echo "Error: Required system-sleep hook not found."
+  echo "Expected one of: ${hook_paths[*]}"
+  echo "Install Swap-OS properly or run from the repository source tree for testing."
+  exit 1
+}
+
 # Execution
+trap 'status=$?; if [ $status -ne 0 ] && type restore_mounts >/dev/null 2>&1; then restore_mounts; fi' EXIT
+
 check_root
 check_dependencies
+validate_sleep_hook
 detect_bootloader
 select_boot_entry
 safety_check_and_unmount

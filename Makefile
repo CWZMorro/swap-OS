@@ -1,5 +1,5 @@
 NAME = swapos
-VERSION = 2.1.0
+VERSION = 2.2.0
 
 # Standard variables for packaging
 PREFIX ?= /usr/local
@@ -18,6 +18,7 @@ install:
 	install -d $(DESTDIR)$(LIBDIR)
 	install -d $(DESTDIR)$(SHAREDIR)
 	install -d $(DESTDIR)$(DOCDIR)
+	install -d $(DESTDIR)/usr/lib/systemd/system-sleep
 	
 	# Install Executable
 	install -m 755 src/swapos $(DESTDIR)$(BINDIR)/$(NAME)
@@ -28,6 +29,9 @@ install:
 	
 	# Install Default Config
 	install -m 644 src/config.default $(DESTDIR)$(SHAREDIR)/config.default
+
+	# Install Systemd Hook
+	install -m 755 src/system-sleep/hibernate.sh $(DESTDIR)/usr/lib/systemd/system-sleep/hibernate.sh
 	
 	# Install Docs/License
 	install -m 644 README.md $(DESTDIR)$(DOCDIR)/README.md

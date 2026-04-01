@@ -16,16 +16,20 @@ in {
 
     protectedPaths = mkOption {
       type = types.listOf types.str;
-      default = [ "/nix" "/nix/store" "/boot" "/home" ];
+      default = [ "/nix" "/nix/store" "/boot" "/efi" "/home" ];
       description = "List of mount points to NEVER unmount.";
     };
   };
 
   config = mkIf cfg.enable {
     environment.systemPackages = [ cfg.package ];
+    systemd.packages = [ cfg.package ];
+
+    environment.etc."systemd/system-sleep/swapos-hibernate".source =
+      "${cfg.package}/lib/systemd/system-sleep/hibernate.sh";
 
     environment.etc."swapos/config".text = ''
-      PROTECTED_PATHS="^/($|dev|proc|sys|run|tmp|var|etc|root|usr|bin|sbin|lib|lib64|opt|srv|${concatStringsSep "|" cfg.protectedPaths})"
+      PROTECTED_PATHS="^/($|dev|proc|sys|run|tmp|var|etc|root|usr|bin|sbin|lib|lib64|opt|srv|${concatStringsSep "|" (map (removePrefix "/") cfg.protectedPaths)})(/|$)"
     '';
   };
 }

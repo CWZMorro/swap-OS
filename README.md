@@ -48,7 +48,12 @@ Install permanently (Flake)
 }
 ```
 ### Other Distros (Manual Install)
-Dependencies: bash, efibootmgr, util-linux, systemd, make, jq, awk
+Dependencies (core): bash, util-linux, systemd, jq, lsof, coreutils, make
+
+Bootloader tools (one required):
+- systemd-boot: `bootctl` (provided by systemd on most distros)
+- GRUB: `grub-reboot` and `grub-editenv`
+
 ```
 git clone https://github.com/CWZMorro/swap-OS
 cd swap-OS
@@ -91,3 +96,5 @@ cd swap-OS
 # Run from root folder
 sudo ./src/swapos
 ```
+
+Note: Swap-OS validates that its sleep hook exists in a system sleep-hook path. When running from the source tree (`sudo ./src/swapos`), local testing mode is automatically allowed.
